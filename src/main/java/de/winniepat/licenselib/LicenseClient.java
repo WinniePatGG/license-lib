@@ -56,6 +56,36 @@ public class LicenseClient {
     }
 
     /**
+     * Checks if license is valid (without serverId)
+     * @param apiUrl Server API url
+     * @param plugin Plugin id matching the one on the backend api
+     * @param licenseKey License key issued by the api
+     * @return LicenseResult with the data from the backend
+     */
+    public static LicenseResult check(
+            String apiUrl,
+            String plugin,
+            String licenseKey
+    ) {
+
+        Http http = new Http();
+
+        JsonObject payload = new JsonObject();
+        payload.addProperty("plugin", plugin);
+        payload.addProperty("licenseKey", licenseKey);
+
+        HttpResponse response = http.post(apiUrl, GSON.toJson(payload));
+
+        JsonObject json = GSON.fromJson(response.body(), JsonObject.class);
+
+        return new LicenseResult(
+                json.get("valid").getAsBoolean(),
+                json.get("status").getAsString(),
+                json.get("message").getAsString()
+        );
+    }
+
+    /**
      * Represents the result of a license check.
      * @param isValid boolean if the license is valid or not
      * @param status license status
