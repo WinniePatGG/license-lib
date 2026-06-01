@@ -1,12 +1,15 @@
+/*
+ * Copyright (c) 2026 WinniePatGG
+ *
+ * Licensed under the MIT License
+ */
+
 package de.winniepat.licenselib;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+import com.google.gson.*;
 
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.net.http.*;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
@@ -16,9 +19,7 @@ import java.util.concurrent.CompletableFuture;
 public class LicenseClient {
 
     private static final Gson GSON = new Gson();
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
     /**
      * Private constructor to prevent instantiation of this utility class.
@@ -35,12 +36,7 @@ public class LicenseClient {
      * @param serverId Server id matching the one on the backend api
      * @return LicenseResult with the data from the backend
      */
-    public static LicenseResult check(
-            String apiUrl,
-            String plugin,
-            String licenseKey,
-            String serverId // can be null
-    ) {
+    public static LicenseResult check(String apiUrl, String plugin, String licenseKey, String serverId) {
         try {
             JsonObject payload = new JsonObject();
             payload.addProperty("plugin", plugin);
@@ -86,12 +82,7 @@ public class LicenseClient {
      * @param serverId Server id matching the one on the backend api
      * @return CompletabaleFuture with the LicenseResult from the backend
      */
-    public static CompletableFuture<LicenseResult> checkAsync(
-            String apiUrl,
-            String plugin,
-            String licenseKey,
-            String serverId
-    ) {
+    public static CompletableFuture<LicenseResult> checkAsync(String apiUrl, String plugin, String licenseKey, String serverId) {
 
         JsonObject payload = new JsonObject();
         payload.addProperty("plugin", plugin);
@@ -118,6 +109,11 @@ public class LicenseClient {
                 ));
     }
 
+    /**
+     * Parses the JSON response from the license server API into a LicenseResult object.
+     * @param body the JSON response body from the license server API
+     * @return a LicenseResult object containing the validity, status, and message from the API response
+     */
     private static LicenseResult parseResponse(String body) {
         JsonObject json = GSON.fromJson(body, JsonObject.class);
 
@@ -135,9 +131,5 @@ public class LicenseClient {
      * @param status license status
      * @param message additional message from the backend
      */
-    public record LicenseResult(
-            boolean isValid,
-            String status,
-            String message
-    ) { }
+    public record LicenseResult(boolean isValid, String status, String message) { }
 }
