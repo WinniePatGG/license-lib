@@ -2,10 +2,12 @@ package de.winniepat.licenselib;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import de.winniepat.winnielib.http.Http;
-import de.winniepat.winnielib.http.HttpResponse;
 
+import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 
 /**
  * A client for checking plugin licenses against a license server.
@@ -13,7 +15,9 @@ import java.net.http.HttpClient;
 public class LicenseClient {
 
     private static final Gson GSON = new Gson();
-    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
 
     /**
      * Private constructor to prevent instantiation of this utility class.
@@ -36,25 +40,41 @@ public class LicenseClient {
             String licenseKey,
             String serverId // can be null
     ) {
+        try {
+            JsonObject payload = new JsonObject();
+            payload.addProperty("plugin", plugin);
+            payload.addProperty("licenseKey", licenseKey);
 
-        Http http = new Http();
+            if (serverId != null) {
+                payload.addProperty("serverId", serverId);
+            }
 
-        JsonObject payload = new JsonObject();
-        payload.addProperty("plugin", plugin);
-        payload.addProperty("licenseKey", licenseKey);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(payload)))
+                    .build();
 
-        if (serverId != null) {
-            payload.addProperty("serverId", serverId);
+            HttpResponse<String> response = HTTP_CLIENT.send(
+                    request,
+                    HttpResponse.BodyHandlers.ofString()
+            );
+
+            JsonObject json = GSON.fromJson(response.body(), JsonObject.class);
+
+            return new LicenseResult(
+                    json.get("valid").getAsBoolean(),
+                    json.get("status").getAsString(),
+                    json.get("message").getAsString()
+            );
+        } catch (Exception e) {
+            return new LicenseResult(
+                    false,
+                    "error",
+                    e.getMessage()
+            );
         }
-
-        HttpResponse response = http.post(apiUrl, GSON.toJson(payload));
-        JsonObject json = GSON.fromJson(response.body(), JsonObject.class);
-
-        return new LicenseResult(
-                json.get("valid").getAsBoolean(),
-                json.get("status").getAsString(),
-                json.get("message").getAsString()
-        );
     }
 
     /**
