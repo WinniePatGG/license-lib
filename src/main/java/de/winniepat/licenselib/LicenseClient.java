@@ -118,12 +118,11 @@ public class LicenseClient {
         JsonObject json = GSON.fromJson(body, JsonObject.class);
 
         return new LicenseResult(
-                json.get("valid").getAsBoolean(),
-                json.get("status").getAsString(),
-                json.get("message").getAsString()
+                getBoolean(json, "valid", false),
+                getString(json, "status", "unknown"),
+                getString(json, "message", "")
         );
     }
-
 
     /**
      * Represents the result of a license check.
@@ -132,4 +131,29 @@ public class LicenseClient {
      * @param message additional message from the backend
      */
     public record LicenseResult(boolean isValid, String status, String message) { }
+
+    /**
+     * Helper Method for getting Strings from the JsonObject without creating a NullPointerException
+     *
+     * @param json JsonObject to get the value from
+     * @param key key to get the value for
+     * @param def fallback value if Null
+     * @return the value from the JsonObject or the fallback value if the key is not present or null
+     */
+    private static String getString(JsonObject json, String key, String def) {
+        if (!json.has(key) || json.get(key).isJsonNull()) return def;
+        return json.get(key).getAsString();
+    }
+
+    /**
+     * Helper Method for getting booleans from the JsonObject without creating a NullPointerException
+     * @param json JsonObject to get the value from
+     * @param key key to get the value for
+     * @param def fallback value if Null
+     * @return the value from the JsonObject or the fallback value if the key is not present or null
+     */
+    private static boolean getBoolean(JsonObject json, String key, boolean def) {
+        if (!json.has(key) || json.get(key).isJsonNull()) return def;
+        return json.get(key).getAsBoolean();
+    }
 }
