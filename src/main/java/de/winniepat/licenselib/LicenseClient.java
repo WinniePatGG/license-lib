@@ -34,38 +34,7 @@ public class LicenseClient {
             String apiUrl,
             String plugin,
             String licenseKey,
-            String serverId
-    ) {
-
-        Http http = new Http();
-
-        JsonObject payload = new JsonObject();
-        payload.addProperty("plugin", plugin);
-        payload.addProperty("licenseKey", licenseKey);
-        payload.addProperty("serverId", serverId);
-
-        HttpResponse response = http.post(apiUrl, GSON.toJson(payload));
-
-        JsonObject json = GSON.fromJson(response.body(), JsonObject.class);
-
-        return new LicenseResult(
-                json.get("valid").getAsBoolean(),
-                json.get("status").getAsString(),
-                json.get("message").getAsString()
-        );
-    }
-
-    /**
-     * Checks if license is valid (without serverId)
-     * @param apiUrl Server API url
-     * @param plugin Plugin id matching the one on the backend api
-     * @param licenseKey License key issued by the api
-     * @return LicenseResult with the data from the backend
-     */
-    public static LicenseResult check(
-            String apiUrl,
-            String plugin,
-            String licenseKey
+            String serverId // can be null
     ) {
 
         Http http = new Http();
@@ -74,8 +43,11 @@ public class LicenseClient {
         payload.addProperty("plugin", plugin);
         payload.addProperty("licenseKey", licenseKey);
 
-        HttpResponse response = http.post(apiUrl, GSON.toJson(payload));
+        if (serverId != null) {
+            payload.addProperty("serverId", serverId);
+        }
 
+        HttpResponse response = http.post(apiUrl, GSON.toJson(payload));
         JsonObject json = GSON.fromJson(response.body(), JsonObject.class);
 
         return new LicenseResult(
