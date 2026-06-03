@@ -65,24 +65,9 @@ public class LicenseClient {
     }
 
     /**
-     * Record representing the result of a license check, containing the validity, status, message, plugin, customer, expiration date, and check date.
-     * @param valid indicates whether the license is valid or not
-     * @param status the status of the license check, e.g. "valid", "invalid", "expired", etc.
-     * @param message a message providing additional information about the license check result, e.g. error messages or instructions for resolving issues
-     * @param plugin the plugin for which the license check was performed
-     * @param customer the customer associated with the license, if available
-     * @param expiresAt the expiration date of the license, if available
-     * @param checkedAt the date and time when the license check was performed
+     * Represents the result of a license check, which can be either a success with license details or an error with a message.
      */
-    public record LicenseResult(
-            boolean valid,
-            String status,
-            String message,
-            String plugin,
-            String customer,
-            String expiresAt,
-            String checkedAt
-    ) { }
+    public sealed interface LicenseResult permits LicenseSuccess, LicenseError {}
 
     private static HttpRequest createRequest(
             String apiUrl,
@@ -107,15 +92,7 @@ public class LicenseClient {
     }
 
     private static LicenseResult errorResult(Throwable throwable) {
-        return new LicenseResult(
-                false,
-                "error",
-                throwable.getMessage(),
-                null,
-                null,
-                null,
-                null
-        );
+        return new LicenseError(throwable.getMessage());
     }
 
     private static String getString(JsonObject json, String key, String def) {
@@ -134,7 +111,7 @@ public class LicenseClient {
         JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
         boolean valid = json.has("valid") && json.get("valid").getAsBoolean();
 
-        return new LicenseResult(
+        return new LicenseSuccess(
                 valid,
                 getString(json, "status", "unknown"),
                 getString(json, "message", ""),
