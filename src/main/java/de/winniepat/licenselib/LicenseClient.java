@@ -75,6 +75,8 @@ public class LicenseClient {
             String licenseKey,
             String serverId
     ) {
+        URI uri = validateUrl(apiUrl);
+
         JsonObject payload = new JsonObject();
         payload.addProperty("plugin", plugin);
         payload.addProperty("licenseKey", licenseKey);
@@ -84,7 +86,7 @@ public class LicenseClient {
         }
 
         return HttpRequest.newBuilder()
-                .uri(URI.create(apiUrl))
+                .uri(uri)
                 .timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(payload)))
@@ -92,7 +94,13 @@ public class LicenseClient {
     }
 
     private static LicenseResult errorResult(Throwable throwable) {
-        return new LicenseError(throwable.getMessage());
+        String msg = throwable.getMessage();
+
+        if (msg == null || msg.isBlank()) {
+            msg = throwable.getClass().getSimpleName();
+        }
+
+        return new LicenseError(msg);
     }
 
     private static String getString(JsonObject json, String key, String def) {
@@ -120,5 +128,19 @@ public class LicenseClient {
                 getString(json, "expiresAt", null),
                 getString(json, "checkedAt", null)
         );
+    }
+
+    private static URI validateUrl(String apiUrl) {
+        URI uri = URI.create(apiUrl);
+
+        if (uri.getScheme() == null || (!uri.getScheme().equals("http") && !uri.getScheme().equals("https"))) {
+            throw new IllegalArgumentException("Invalid URL scheme: " + apiUrl);
+        }
+
+        if (uri.getHost() == null) {
+            throw new IllegalArgumentException("Invalid URL (missing host): " + apiUrl);
+        }
+
+        return uri;
     }
 }
