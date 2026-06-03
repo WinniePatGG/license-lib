@@ -56,12 +56,16 @@ public class LicenseClient {
      * @return CompletabaleFuture with the LicenseResult from the backend
      */
     public static CompletableFuture<LicenseResult> checkAsync(String apiUrl, String plugin, String licenseKey, String serverId) {
-        HttpRequest request = createRequest(apiUrl, plugin, licenseKey, serverId);
+        try {
+            HttpRequest request = createRequest(apiUrl, plugin, licenseKey, serverId);
 
-        return HTTP_CLIENT
-                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(LicenseClient::fromHttpResponse)
-                .exceptionally(LicenseClient::errorResult);
+            return HTTP_CLIENT
+                    .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenApply(LicenseClient::fromHttpResponse)
+                    .exceptionally(LicenseClient::errorResult);
+        } catch (Exception e) {
+            return CompletableFuture.completedFuture(errorResult(e));
+        }
     }
 
     /**
@@ -94,13 +98,8 @@ public class LicenseClient {
     }
 
     private static LicenseResult errorResult(Throwable throwable) {
-        String msg = throwable.getMessage();
-
-        if (msg == null || msg.isBlank()) {
-            msg = throwable.getClass().getSimpleName();
-        }
-
-        return new LicenseError(msg);
+        String message = buildErrorMessage(throwable);
+        return new LicenseError(message);
     }
 
     private static String getString(JsonObject json, String key, String def) {
@@ -142,5 +141,21 @@ public class LicenseClient {
         }
 
         return uri;
+    }
+
+    private static String buildErrorMessage(Throwable t) {
+        Throwable root = t;
+
+        while (root.getCause() != null) {
+            root = root.getCause();
+        }
+
+        String msg = root.getMessage();
+
+        if (msg == null || msg.isBlank()) {
+            msg = root.getClass().getSimpleName();
+        }
+
+        return root.getClass().getSimpleName() + ": " + msg;
     }
 }
