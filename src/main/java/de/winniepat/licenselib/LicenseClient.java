@@ -53,7 +53,7 @@ public class LicenseClient {
      * @param plugin Plugin id matching the one on the backend api
      * @param licenseKey License key issued by the api
      * @param serverId Server id matching the one on the backend api
-     * @return CompletabaleFuture with the LicenseResult from the backend
+     * @return CompletableFuture with the LicenseResult from the backend
      */
     public static CompletableFuture<LicenseResult> checkAsync(String apiUrl, String plugin, String licenseKey, String serverId) {
         try {
