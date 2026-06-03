@@ -17,7 +17,7 @@ dependencies {
 
 ### Usage (Sync)
 
-You can work with syncResult.isValid() to check if the license is valid and handle it from there
+You can work with success.valid() to check if the license is valid and handle it from there
 ```java
 import de.winniepat.licenselib.LicenseClient;
 import de.winniepat.licenselib.LicenseSuccess;
@@ -43,7 +43,7 @@ public class main {
 
 ### Usage (Async)
 
-Here you can also work with result.isValid() and handle it from there
+Here you can also work with success.valid() and handle it from there
 ```java
 import de.winniepat.licenselib.LicenseClient;
 import de.winniepat.licenselib.LicenseSuccess;
