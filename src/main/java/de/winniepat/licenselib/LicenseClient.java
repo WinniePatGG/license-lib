@@ -38,39 +38,12 @@ public class LicenseClient {
      */
     public static LicenseResult check(String apiUrl, String plugin, String licenseKey, String serverId) {
         try {
-            JsonObject payload = new JsonObject();
-            payload.addProperty("plugin", plugin);
-            payload.addProperty("licenseKey", licenseKey);
+            HttpRequest request = createRequest(apiUrl, plugin, licenseKey, serverId);
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (serverId != null) {
-                payload.addProperty("serverId", serverId);
-            }
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(apiUrl))
-                    .timeout(Duration.ofSeconds(10))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(payload)))
-                    .build();
-
-            HttpResponse<String> response = HTTP_CLIENT.send(
-                    request,
-                    HttpResponse.BodyHandlers.ofString()
-            );
-
-            JsonObject json = GSON.fromJson(response.body(), JsonObject.class);
-
-            return new LicenseResult(
-                    json.get("valid").getAsBoolean(),
-                    json.get("status").getAsString(),
-                    json.get("message").getAsString()
-            );
+            return fromHttpResponse(response);
         } catch (Exception e) {
-            return new LicenseResult(
-                    false,
-                    "error",
-                    e.getMessage()
-            );
+            return errorResult(e);
         }
     }
 
@@ -83,7 +56,40 @@ public class LicenseClient {
      * @return CompletabaleFuture with the LicenseResult from the backend
      */
     public static CompletableFuture<LicenseResult> checkAsync(String apiUrl, String plugin, String licenseKey, String serverId) {
+        HttpRequest request = createRequest(apiUrl, plugin, licenseKey, serverId);
 
+        return HTTP_CLIENT
+                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(LicenseClient::fromHttpResponse)
+                .exceptionally(LicenseClient::errorResult);
+    }
+
+    /**
+     * Record representing the result of a license check, containing the validity, status, message, plugin, customer, expiration date, and check date.
+     * @param valid indicates whether the license is valid or not
+     * @param status the status of the license check, e.g. "valid", "invalid", "expired", etc.
+     * @param message a message providing additional information about the license check result, e.g. error messages or instructions for resolving issues
+     * @param plugin the plugin for which the license check was performed
+     * @param customer the customer associated with the license, if available
+     * @param expiresAt the expiration date of the license, if available
+     * @param checkedAt the date and time when the license check was performed
+     */
+    public record LicenseResult(
+            boolean valid,
+            String status,
+            String message,
+            String plugin,
+            String customer,
+            String expiresAt,
+            String checkedAt
+    ) { }
+
+    private static HttpRequest createRequest(
+            String apiUrl,
+            String plugin,
+            String licenseKey,
+            String serverId
+    ) {
         JsonObject payload = new JsonObject();
         payload.addProperty("plugin", plugin);
         payload.addProperty("licenseKey", licenseKey);
@@ -92,68 +98,50 @@ public class LicenseClient {
             payload.addProperty("serverId", serverId);
         }
 
-        HttpRequest request = HttpRequest.newBuilder()
+        return HttpRequest.newBuilder()
                 .uri(URI.create(apiUrl))
                 .timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(payload)))
                 .build();
-
-        return HTTP_CLIENT
-                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> parseResponse(response.body()))
-                .exceptionally(ex -> new LicenseResult(
-                        false,
-                        "error",
-                        ex.getMessage()
-                ));
     }
 
-    /**
-     * Parses the JSON response from the license server API into a LicenseResult object.
-     * @param body the JSON response body from the license server API
-     * @return a LicenseResult object containing the validity, status, and message from the API response
-     */
-    private static LicenseResult parseResponse(String body) {
-        JsonObject json = GSON.fromJson(body, JsonObject.class);
-
+    private static LicenseResult errorResult(Throwable throwable) {
         return new LicenseResult(
-                getBoolean(json, "valid", false),
-                getString(json, "status", "unknown"),
-                getString(json, "message", "")
+                false,
+                "error",
+                throwable.getMessage(),
+                null,
+                null,
+                null,
+                null
         );
     }
 
-    /**
-     * Represents the result of a license check.
-     * @param isValid boolean if the license is valid or not
-     * @param status license status
-     * @param message additional message from the backend
-     */
-    public record LicenseResult(boolean isValid, String status, String message) { }
-
-    /**
-     * Helper Method for getting Strings from the JsonObject without creating a NullPointerException
-     *
-     * @param json JsonObject to get the value from
-     * @param key key to get the value for
-     * @param def fallback value if Null
-     * @return the value from the JsonObject or the fallback value if the key is not present or null
-     */
     private static String getString(JsonObject json, String key, String def) {
-        if (!json.has(key) || json.get(key).isJsonNull()) return def;
-        return json.get(key).getAsString();
+        return json.has(key) && !json.get(key).isJsonNull()
+                ? json.get(key).getAsString()
+                : def;
     }
 
-    /**
-     * Helper Method for getting booleans from the JsonObject without creating a NullPointerException
-     * @param json JsonObject to get the value from
-     * @param key key to get the value for
-     * @param def fallback value if Null
-     * @return the value from the JsonObject or the fallback value if the key is not present or null
-     */
-    private static boolean getBoolean(JsonObject json, String key, boolean def) {
-        if (!json.has(key) || json.get(key).isJsonNull()) return def;
-        return json.get(key).getAsBoolean();
+    private static LicenseResult fromHttpResponse(HttpResponse<String> response) {
+        if (response.statusCode() != 200) {
+            return errorResult(new RuntimeException(
+                    "HTTP " + response.statusCode() + ": " + response.body()
+            ));
+        }
+
+        JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+        boolean valid = json.has("valid") && json.get("valid").getAsBoolean();
+
+        return new LicenseResult(
+                valid,
+                getString(json, "status", "unknown"),
+                getString(json, "message", ""),
+                getString(json, "plugin", null),
+                getString(json, "customer", null),
+                getString(json, "expiresAt", null),
+                getString(json, "checkedAt", null)
+        );
     }
 }
