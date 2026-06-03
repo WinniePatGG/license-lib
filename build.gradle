@@ -46,8 +46,9 @@ publishing {
             url = uri("https://maven.winniepat.de/repository/maven-releases/")
 
             credentials {
-                username = "admin"
-                password = "oXIAxHoSvdm7EJhvV0BQB9Zjd0OOaunf4VUVj7zq"
+                username = project.property("publish.username")
+                password = project.property("publish.password")
+                // the credentials from before are not valid anymore (I am not that dumb)
             }
         }
     }

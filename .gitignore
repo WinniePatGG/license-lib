@@ -3,3 +3,6 @@
 build
 gradle
 run
+
+# VERY IMPORTANT
+gradle.properties
